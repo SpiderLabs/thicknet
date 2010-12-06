@@ -2,8 +2,8 @@ package thicknet::Util;
 
 =header
     thicknet - A tool to manipulate and take control of TCP sessions
-	Copyright (C) 2010 Steve Ocepek and Wendel G. Henrique,
-	Trustwave SpiderLabs
+	Created by Steve Ocepek and Wendel G. Henrique
+	Copyright (C) 2010 Trustwave Holdings, Inc.
  
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
