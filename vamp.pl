@@ -3,7 +3,7 @@
 =header
     vamp - A stateful, request-based ARP poisoning program
 	Created by Steve Ocepek and Wendel G. Henrique
-	Copyright (C) 2010 Trustwave Holdings, Inc.
+	Copyright (C) 2010, 2011 Trustwave Holdings, Inc.
  
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@ use AnyEvent;
 use EV;
 use Net::Libdnet::Intf;
 use thicknet::Util;
-#use Data::Dumper;
 
 my ($myip,$mymac);
 my ($ip1,$ip2);
@@ -234,7 +233,9 @@ if ($ARGV[0]) {
 	
 } else {
 	print "vamp - Villainous ARP Manipulation Program\n";
-	print "(c) 2010 Wendel Henrique and Steve Ocepek, SpiderLabs";
+	print "(c) 2010, 2011 Trustwave Holdings, Inc.\n";
+    print "Created by Wendel G. Henrique and Steve Ocepek\n";
+    print "Trustwave SpiderLabs(R)\n";
 	print "\n";
 	print "Usage: vamp.pl IP1 [IP2] [dev]\n";
 	print "IP formats: 192.168.2.1 or \n"; 

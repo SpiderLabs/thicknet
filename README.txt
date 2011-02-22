@@ -1,5 +1,4 @@
 thicknet 
-Released at Black Hat Europe 2010
 Steve Ocepek <socepek@trustwave.com>
 Wendel G. Henrique <whenrique@trustwave.com>
 http://www.spiderlabs.com
@@ -7,16 +6,12 @@ http://www.spiderlabs.com
 INTRODUCTION
 ============
 
-thicknet is a TCP session manipulation and take-over tool. The tool is
-initially aimed at downgrading Oracle sessions and issuing SQL queries
-using an already-established session. This is an early proof-of-concept,
-version, but the basic concepts are there to write modules and do MITM
-against a variety of protocols.
+thicknet is a TCP session manipulation and take-over framework.
 
 Cool stuff includes:
 o True L2 packet forwarding
 o Detection of already-running sessions
-o Ability to takeover Oracle sessions and issue commands
+o Ability to takeover sessions and issue commands
 o Modular implementation
 
 
@@ -54,10 +49,10 @@ specified interface's IP - ENSURE THAT IP FORWARDING IS DISABLED.
 Use vamp.pl (included in this package) to initiate ARP poisoning and redirect 
 packets to your own host. 
 
-To enable Oracle protocol downgrade, use the 'd' command. Note that this may
-cause disconnects for some new sessions, depending on client version. The
-username and 8i hash will be printed to the screen for each successful
-downgrade.
+To enable protocol downgrade (Oracle only currently), use the 'd' command.
+Note that this may cause disconnects for some new sessions, depending on
+client version. The username and 8i hash will be printed to the screen for
+each successful downgrade.
 
 
 COPYRIGHT
@@ -65,7 +60,7 @@ COPYRIGHT
 
 thicknet - A tool to manipulate and take control of TCP sessions
 Created by Steve Ocepek and Wendel G. Henrique
-Copyright (C) 2010 Trustwave Holdings, Inc.
+Copyright (C) 2010, 2011 Trustwave Holdings, Inc.
  
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

