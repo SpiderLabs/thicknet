@@ -129,7 +129,7 @@ sub postprocess {
 	
 	# Check for examine flag
 	if ($self->{session}->{examine}) {
-	    # This weeds out most obnoxius keepalive spam on the console
+	    # This weeds out most obnoxious keepalive spam on the console
 	    if ($self->{datalen} > 5) {
 	        my $string = $self->{ip}->{src_ip} . ":" . $self->{tcp}->{src_port} . " -> " . $self->{ip}->{dest_ip} . ":" . $self->{tcp}->{dest_port}  . " flags: " . $self->{tcp}->{flags} . " seq: " . $self->{tcp}->{seqnum} . " ack: " . $self->{tcp}->{acknum} . " len: " . $self->{ip}->{len} . "\n";
     	    $string = $string . HexDump $self->{tcp}->{data};

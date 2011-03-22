@@ -26,6 +26,7 @@ use Exporter;
 use thicknet::pcap::ARP;
 use thicknet::Util;
 use thicknet::session::Session;
+use thicknet::session::Oracle;
 
 sub process {
     my $self = shift;
@@ -49,7 +50,7 @@ sub process {
             $self->{dir} = 0;
         }
         # Create session object
-        $self->{sref}->{"$client:$client_port:$server:$server_port"} = thicknet::session::Session->new();
+        $self->{sref}->{"$client:$client_port:$server:$server_port"} = thicknet::session::Oracle->new();
         $self->{session} = $self->{sref}->{"$client:$client_port:$server:$server_port"};
         $self->{session}->{server} = $server;
         $self->{session}->{client} = $client;
@@ -73,7 +74,7 @@ sub process {
 	# Only perform this check for client->server (dir == 1)
 	my $sled_text = "select";
 	unless ($self->{session}->{sled}) {
-	    unless ($self->{dir}) {
+	    if ($self->{dir}) {
 		    if ($self->{tcp}->{data} =~ m/$sled_text/i) {
 			    $self->{session}->{sled}->{pkt} = $self->{pkt};
 			    $self->{session}->{sled}->{eth} = NetPacket::Ethernet->decode($self->{pkt});
