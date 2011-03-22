@@ -243,6 +243,9 @@ if ($ARGV[0]) {
 	print "            192.168.2.1 + 24 or \n";
 	print "            192.168.2.1 - 192.168.2.25\n";
 	print "\n";
+	print "If using a syntax with spaces, make sure to enclose with quotes:\n";
+	print "vamp.pl \"192.168.2.10 + 5\" 192.168.2.1 eth0\n";
+	print "\n";
 	exit;
 }
 
